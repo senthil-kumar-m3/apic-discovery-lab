@@ -24,7 +24,7 @@ jobs:
       with:
         api_host: tj-isa-1-420eb34f056ae68f3969289d61f61851-0000.jp-tok.containers.appdomain.cloud
         platform_api_prefix: api-manage-1720ed5d-api-manager-tech-jam-apic
-        INSECURE_SKIP_TLS_VERIFY: true
+        #INSECURE_SKIP_TLS_VERIFY: true
         provider_org: tech-jam-09
         api_key: ${{ secrets.apicApikey_participant_12 }}
         api_files: APIfolder/photos.yaml
