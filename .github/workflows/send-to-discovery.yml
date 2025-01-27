@@ -1,22 +1,48 @@
-name: Sync Discovered API with APIConnect
+name: Sync Discovered API with ApiConnect
 
 on: [pull_request, workflow_dispatch, push]
 
 env:
   API_HOST: us-east-a.apiconnect.automation.ibm.com
-  PLATFORM_API_PREFIX: demo-discovery-api
+  # platform_api_prefix is not required to change for ApiConnect on Cloud
+  PLATFORM_API_PREFIX: platform-api
   PROVIDER_ORG: api-connect-ns
-  API_FOLDERS: APIfolder/
-
+  # API_FILES: gmail-api.json
+  #API_FILES: gmail-api.json,mit-api.json,gmail-api.yaml,APIfolder/uber-api.json
+  API_FOLDERS: APIfolder
+  
 jobs:
-  run-discovery:
-    runs-on: ubuntu-latest
+  check_changes_job:
+    runs-on: 'ubuntu-20.04'
+    # Declare outputs for next jobs
+    outputs:
+      action_changed: ${{ steps.check_workflow_changed.outputs.action_updates }}
+      changed_filename: ${{ steps.changed_filename.outputs.api_file }}
+      apifiles_env: ${{ steps.changed_filename.outputs.apifiles_env }}
+      folder_changed: ${{ steps.check_apifolders_changed.outputs.folder_updates }}
     steps:
     - uses: actions/checkout@v4
-    - name: Difference
-      id: difference-output
+      with:
+        fetch-depth: 2
+    - name: Check Workflow changed
+      id: check_workflow_changed
       run: |
-        echo "action_updates=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.before }} ${{ github.sha }} | xargs)" >> $GITHUB_OUTPUT
+        echo "action_updates=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.before }} ${{ github.sha }} | grep discover-api.yml | xargs)" >> $GITHUB_OUTPUT
+    - name: Changed API File Name
+      id: changed_filename
+      run: |
+        echo "api_file=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.before }} ${{ github.sha }} | xargs)" >> $GITHUB_OUTPUT
+        echo "apifiles_env=$(echo $API_FILES)" >> $GITHUB_OUTPUT
+    - name: Check API Folders changed
+      id: check_apifolders_changed
+      run: |
+        echo "folder_updates=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.before }} ${{ github.sha }} | grep $API_FOLDERS | xargs)" >> $GITHUB_OUTPUT
+  run-discovery:
+    runs-on: ubuntu-latest
+    needs: [ check_changes_job ]
+    if: ${{ (contains(needs.check_changes_job.outputs.apifiles_env,needs.check_changes_job.outputs.changed_filename)) || (needs.check_changes_job.outputs.action_changed) || (needs.check_changes_job.outputs.folder_changed) }}
+    steps:
+    - uses: actions/checkout@v4
     - uses: ibm-apiconnect/apic-discovery-action@main
       id: discover-apis
       with:
@@ -28,9 +54,7 @@ jobs:
         api_files: ${{ env.API_FILES }}
         else if: env.API_FOLDERS
         api_folders: ${{ env.API_FOLDERS }}
-        resync_check: ${{ true }}
-        git_diff: ${{ steps.difference-output.outputs.action_updates }}
+        resync_check: ${{ needs.check_changes_job.outputs.action_changed && true || false }}
     - name: Display the action-result
       run: |
         echo "Result of the action: ${{ steps.discover-apis.outputs.action-result }}"
-        echo "End"
