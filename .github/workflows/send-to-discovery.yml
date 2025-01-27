@@ -6,7 +6,7 @@ env:
   API_HOST: us-east-a.apiconnect.automation.ibm.com
   PLATFORM_API_PREFIX: demo-discovery-api
   PROVIDER_ORG: api-connect-ns
-  API_FOLDER: APIfolder/
+  API_FOLDERS: APIfolder/
 
 jobs:
   run-discovery:
